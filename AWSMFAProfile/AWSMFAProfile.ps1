@@ -68,7 +68,7 @@ PS> Get-EC2Instance -ProfileName "NorthWindTraders" -Region "ap-southeast-2"
 3. Retrieve EC2 instances from "NorthWindTraders" account.
 #>
 
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact='Medium')]
     param (
         [Parameter(Mandatory = $True)]
         [string]$DeviceARN,
@@ -85,9 +85,12 @@ PS> Get-EC2Instance -ProfileName "NorthWindTraders" -Region "ap-southeast-2"
     )
     begin {
         try {
+            # Importing necessory modules
             Import-Module -Name "AWSPowerShell" -ErrorAction SilentlyContinue
             Import-Module -Name "AWS.Tools.Common" -ErrorAction SilentlyContinue
             Import-Module -Name "AWS.Tools.SecurityToken" -ErrorAction SilentlyContinue
+
+            # Double check if the required commands are present
             Get-Command -Name Use-STSRole | Out-Null
             Get-Command -Name Set-AWSCredential | Out-Null
         }
@@ -97,30 +100,45 @@ PS> Get-EC2Instance -ProfileName "NorthWindTraders" -Region "ap-southeast-2"
         }
     }
     process {
-        try {
-            $STSCred = Use-STSRole `
-                -SerialNumber $DeviceARN `
-                -RoleArn $RoleARN `
-                -RoleSessionName $SessionName `
-                -DurationInSeconds $Duration `
-                -ProfileName $ParentProfile `
-                -TokenCode $MFAToken
-            Write-Output "Temporary session token for '$StoreAs'is generated successfully."
 
-            Set-AWSCredential `
-                -StoreAs $StoreAs `
-                -AccessKey $STSCred.Credentials.AccessKeyId `
-                -SecretKey $STSCred.Credentials.SecretAccessKey `
-                -SessionToken $STSCred.Credentials.SessionToken
-            Write-Output "Profile '$StoreAs' is successfully updated in local AWS Credential."
-        }
-        catch {
-            Write-Error $PSItem.ToString()
-            break
+        # Beginning of the process
+        if ($PSCmdlet.ShouldProcess("Updates the '$StoreAs' profile with new temporary STS token credential")) {
+            try {
+                # Cleanup STSCred variable and ensure it is not set
+                Clear-Variable -Name STSCred -ErrorAction SilentlyContinue
+
+                # Getting the temporary STS token
+                $STSCred = Use-STSRole `
+                    -SerialNumber $DeviceARN `
+                    -RoleArn $RoleARN `
+                    -RoleSessionName $SessionName `
+                    -DurationInSeconds $Duration `
+                    -ProfileName $ParentProfile `
+                    -TokenCode $MFAToken
+                Write-Output "Temporary session token for '$StoreAs' is generated successfully."
+
+                # If the temprary token is able generated, proceed
+                if ($STSCred) {
+                    # Update/Overwirte the profile session in local AWS credential file
+                    Set-AWSCredential `
+                        -StoreAs $StoreAs `
+                        -AccessKey $STSCred.Credentials.AccessKeyId `
+                        -SecretKey $STSCred.Credentials.SecretAccessKey `
+                        -SessionToken $STSCred.Credentials.SessionToken
+                    Write-Output "Profile '$StoreAs' is successfully updated in local AWS credential."
+                }
+                else {
+                    Write-Output "Temporary session token for '$StoreAs'is failed to generated."
+                }
+            }
+            catch {
+                Write-Error $PSItem.ToString()
+                break
+            }
         }
     }
     end {
     }
-}]
+}
 
 Export-ModuleMember -Function Set-AWSMFAProfile
