@@ -79,7 +79,7 @@ PS> Get-EC2Instance -ProfileName "NorthWindTraders" -Region "ap-southeast-2"
         [Parameter(Mandatory = $True)]
         [string]$RoleARN,
         [Parameter(Mandatory = $True)]
-        [int]$MFAToken,
+        [string]$MFAToken,
         $ParentProfile = "default",
         [int]$Duration = 14400
     )
