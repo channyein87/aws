@@ -1,4 +1,6 @@
-# Description
+# AWSMFAProfile
+
+## Description
 
 Generates STS token for cross account with MFA and update the local AWS credential.
 
